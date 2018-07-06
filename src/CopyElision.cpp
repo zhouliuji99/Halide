@@ -61,13 +61,13 @@ string get_pointwise_copy_producer(const Function &f,
         return prod;
     }*/
 
-    debug(0) << "\n\nGET POINTWISE COPIES FOR: " << f.name() << "\n";
+    const vector<Expr> &f_args = f.definition().args();
+
     string prod;
     for (int i = 0; i < (int)f.values().size(); ++i) {
         Expr val = perform_inline(f.values()[i], env, inlined);
         if (const Call *call = val.as<Call>()) {
             if (call->call_type == Call::Halide) {
-                debug(0) << "\t...Checking call: " << Expr(call) << "\n";
                 // Check if it is a pointwise copy. For tuple, check if 'f'
                 // copies the whole tuple values.
                 if (!prod.empty() && (prod != call->name)) {
@@ -94,7 +94,7 @@ string get_pointwise_copy_producer(const Function &f,
                              << f.dimensions() << " vs " << prod_f.dimensions() << ")\n";
                     return "";
                 }
-                internal_assert(f.args().size() == call->args.size());
+                internal_assert(f_args.size() == call->args.size());
 
                 if (f.values().size() != prod_f.values().size()) {
                     debug(4) << "...Function \"" << f.name() << "\" does not call "
@@ -115,29 +115,14 @@ string get_pointwise_copy_producer(const Function &f,
                     // Check if the call args are equivalent for both the
                     // RHS ('f') and LHS ('prod_f').
                     // TODO(psuriana): Handle case for copy with some index shifting
-                    debug(0) << "\tcons: " << f.name() << ", cons arg: " << f.args()[j] << ", prod: " << prod_f.name() << ", prod arg: " << call->args[j] << "\n";
-                    if (!equal(f.args()[j], call->args[j])) {
-                        debug(0) << "At arg " << j << ", " << f.name() << "("
-                                 << f.args()[i] << ") != " << prod_f.name()
-                                 << "[" << call->value_index << "]("
+                    if (!equal(f_args[j], call->args[j])) {
+                        debug(0) << "At arg " << j << ", " << f.name() << " (arg: "
+                                 << f_args[i] << ") != " << prod_f.name()
+                                 << "[" << call->value_index << "] (arg: "
                                  << call->args[j] << ")\n";
                         return "";
                     }
                 }
-
-                /*for (int j = 0; j < f.dimensions(); ++j) {
-                    // Check if the call args are equivalent for both the
-                    // RHS ('f') and LHS ('prod_f').
-                    // TODO(psuriana): Handle case for copy with some index shifting
-                    debug(0) << "\tcons: " << f.name() << ", cons arg: " << f.args()[j] << ", prod: " << prod_f.name() << ", prod arg: " << prod_f.args()[j] << "\n";
-                    if (!equal(f.args()[j], prod_f.args()[j])) {
-                        debug(0) << "At arg " << j << ", " << f.name() << "("
-                                 << f.args()[i] << ") != " << prod_f.name()
-                                 << "[" << call->value_index << "]("
-                                 << prod_f.args()[j] << ")\n";
-                        return "";
-                    }
-                }*/
             }
         } else if (!prod.empty()) {
             debug(4) << "...Function \"" << f.name() << "\" does not call "
